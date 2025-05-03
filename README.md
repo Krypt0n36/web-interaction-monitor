@@ -1,9 +1,9 @@
+<img src="icon.png" alt="Extension Logo" width="128" height="128">
+
 # Chrome Interaction Collector Extension
 
 <div align="center">
-  <img src="icon.png" alt="Extension Logo" width="128" height="128">
-  <br>
-  <img src="demo.gif" alt="Extension Demo" width="400">
+  <img src="demo.gif" alt="Extension Demo" width="744">
 </div>
 
 A Chrome extension that collects and monitors user interactions on webpages, including mouse movements, scrolls, clicks, and keypresses.
