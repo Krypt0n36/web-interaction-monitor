@@ -1,5 +1,13 @@
-// Store interactions
-let interactions = [];
+// Generate a unique session ID
+function generateSessionId() {
+    return Math.random().toString(36).substr(2, 9);
+}
+
+// Store the current session ID
+let currentSessionId = generateSessionId();
+
+
+
 
 // Function to get element details
 function getElementDetails(element) {
@@ -15,65 +23,95 @@ function getElementDetails(element) {
 
 // Function to safely send message to background
 function sendToBackground(message) {
-    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-        chrome.runtime.sendMessage(message);
+    try {
+        if (chrome && chrome.runtime && chrome.runtime.sendMessage) {
+            chrome.runtime.sendMessage(message);
+        }
+    } catch (error) {
+        console.error('Error sending message to background:', error);
     }
 }
 
-// Mouse movement handler
+// Track mouse movements
 document.addEventListener('mousemove', (e) => {
-    const interaction = {
-        action: 'mouse_move',
-        time: Date.now(),
-        cursor_pos: [e.clientX, e.clientY],
-        screen_size: [window.innerWidth, window.innerHeight]
-    };
-    interactions.push(interaction);
-});
-
-// Scroll handler
-let lastScrollY = window.scrollY;
-document.addEventListener('scroll', (e) => {
-    const currentScrollY = window.scrollY;
-    const interaction = {
-        action: 'scroll',
-        direction: currentScrollY > lastScrollY ? 'down' : 'up',
-        time: Date.now(),
-        current_offset: currentScrollY,
-        total_offset: document.documentElement.scrollHeight - window.innerHeight,
-        screen_size: [window.innerWidth, window.innerHeight]
-    };
-    interactions.push(interaction);
-    lastScrollY = currentScrollY;
-});
-
-// Click handler
-document.addEventListener('click', (e) => {
-    const interaction = {
-        action: 'click',
-        time: Date.now(),
-        position: [e.clientX, e.clientY],
-        DOMElement: getElementDetails(e.target)
-    };
-    interactions.push(interaction);
-});
-
-// Keypress handler
-document.addEventListener('keypress', (e) => {
-    const interaction = {
-        action: 'KEYPRESS',
-        time: Date.now()
-    };
-    interactions.push(interaction);
-});
-
-// Periodically send data to background script
-setInterval(() => {
-    if (interactions.length > 0) {
         sendToBackground({
             type: 'INTERACTIONS',
-            data: interactions
+            data: [{
+                action: 'mouse_move',
+                timestamp: Date.now(),
+                x: e.clientX,
+                y: e.clientY,
+                session_id: currentSessionId
+            }]
         });
-        interactions = []; // Clear the array after sending
+});
+
+let lastScrollY = null;
+// Track scroll events
+document.addEventListener('scroll', () => {
+        // Get current scroll position
+        const currentScrollY = window.scrollY || window.pageYOffset;
+
+        // Get total scrollable height and width
+        const totalHeight = Math.max(
+        document.body.scrollHeight,
+        document.documentElement.scrollHeight,
+        document.body.offsetHeight,
+        document.documentElement.offsetHeight,
+        document.body.clientHeight,
+        document.documentElement.clientHeight
+        ) - window.innerHeight;
+
+        // Get scroll direction
+        const scrollDirection = lastScrollY === null ? 'n/a' : currentScrollY > lastScrollY ? 'down' : 'up';
+
+        // Update last scroll position
+        lastScrollY = currentScrollY;
+
+        sendToBackground({
+            type: 'INTERACTIONS',
+            data: [{
+                action: 'scroll',
+                timestamp: Date.now(),
+                session_id: currentSessionId,
+                current_offset: currentScrollY,
+                total_offset: totalHeight,
+                scroll_direction: scrollDirection       
+            }]
+    });
+});
+
+// Track clicks
+document.addEventListener('click', (e) => {
+        sendToBackground({
+            type: 'INTERACTIONS',
+            data: [{
+            action: 'click',
+            x: e.clientX,
+            y: e.clientY,
+            timestamp: Date.now(),
+            session_id: currentSessionId,
+            target: getElementDetails(e.target)
+            }]
+        });
+});
+
+// Track keypresses
+document.addEventListener('keypress', (e) => {
+        sendToBackground({
+            type: 'INTERACTIONS',
+            data: [{
+            action: 'keypress',
+            timestamp: Date.now(),
+            session_id: currentSessionId
+        }]
+    });
+});
+
+// Handle visibility change (tab switch)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        // Generate new session ID when tab becomes visible
+        currentSessionId = generateSessionId();
     }
-}, 1000); // Send every second 
+});

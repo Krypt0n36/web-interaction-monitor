@@ -19,210 +19,138 @@ function showToast(message) {
     }, 3000);
 }
 
-// Function to safely send message to background
-function sendMessageToBackground(message) {
-    return new Promise((resolve, reject) => {
-        try {
-            chrome.runtime.sendMessage(message, (response) => {
-                if (chrome.runtime.lastError) {
-                    console.error('Extension context error:', chrome.runtime.lastError);
-                    reject(chrome.runtime.lastError);
-                    return;
-                }
-                resolve(response);
-            });
-        } catch (error) {
-            console.error('Extension context error:', error);
-            reject(error);
-        }
-    });
-}
-
-// Function to format the interaction data for display
-function formatInteraction(interaction) {
-    let details = '';
-    
-    switch(interaction.action) {
-        case 'mouse_move':
-            details = `Mouse moved to (${interaction.cursor_pos[0]}, ${interaction.cursor_pos[1]})`;
-            break;
-        case 'scroll':
-            details = `Scrolled ${interaction.direction} to offset ${interaction.current_offset}`;
-            break;
-        case 'click':
-            details = `Clicked on ${interaction.DOMElement.tag} at (${interaction.position[0]}, ${interaction.position[1]})`;
-            break;
-        case 'keypress':
-            details = 'Key pressed';
-            break;
-    }
-    
-    return `
-        <div class="interaction">
-            <div class="timestamp">${new Date(interaction.time).toLocaleTimeString()}</div>
-            <div>${details}</div>
-        </div>
-    `;
-}
-
-// Function to update statistics display
-async function updateStats(interactions) {
-    const stats = {
-        mouse_move: 0,
-        scroll: 0,
-        click: 0,
-        keypress: 0
-    };
-
-    // Calculate current session stats
-    interactions.forEach(interaction => {
-        stats[interaction.action]++;
-    });
-
-    // Get total stats from background
+// Function to safely send messages to background script
+async function sendMessageToBackground(message) {
     try {
-        const totalStatsResponse = await sendMessageToBackground({ type: 'GET_TOTAL_STATS' });
-        if (totalStatsResponse) {
-            totalStats = totalStatsResponse;
-        }
+        return await chrome.runtime.sendMessage(message);
     } catch (error) {
-        console.error('Failed to fetch total stats:', error);
+        if (error.message.includes('Extension context invalidated')) {
+            document.getElementById('stats').innerHTML = '<p class="error">Extension context invalidated. Please reload the extension.</p>';
+            return null;
+        }
+        throw error;
     }
-
-    const showTotal = document.getElementById('sessionToggle').checked;
-    const statsTitle = document.getElementById('statsTitle');
-    statsTitle.textContent = showTotal ? 'Total Statistics' : 'Current Session Statistics';
-
-    const displayStats = showTotal ? totalStats : stats;
-
-    document.getElementById('mouseMoveCount').textContent = displayStats.mouse_move;
-    document.getElementById('scrollCount').textContent = displayStats.scroll;
-    document.getElementById('clickCount').textContent = displayStats.click;
-    document.getElementById('keypressCount').textContent = displayStats.keypress;
 }
 
-// Function to update download history
+document.querySelector('.toggle-button').addEventListener('click', async () => {
+    const toggleButton = document.querySelector('.toggle-button');
+    if (toggleButton.classList.contains('on')) {
+        toggleButton.classList.remove('on');
+        toggleButton.classList.add('off');
+        await sendMessageToBackground({ type: 'STOP_COLLECTING' });
+    }else{
+        toggleButton.classList.remove('off');
+        toggleButton.classList.add('on');
+        await sendMessageToBackground({ type: 'START_COLLECTING' });
+    }
+});
+
+// Function to update stats display
+function updateStats(stats) {
+    document.getElementById('mouse-move-count').textContent = stats.mouse_move;
+    document.getElementById('scroll-count').textContent = stats.scroll;
+    document.getElementById('click-count').textContent = stats.click;
+    document.getElementById('keypress-count').textContent = stats.keypress;
+}
+
+// Function to update download history display
 function updateDownloadHistory() {
-    const historyContainer = document.getElementById('downloadHistory');
-    if (downloadedSessions.length === 0) {
-        historyContainer.innerHTML = '<div class="history-item">No downloaded sessions yet</div>';
-        return;
-    }
+    const historyList = document.getElementById('download-history');
+    historyList.innerHTML = '';
 
-    historyContainer.innerHTML = downloadedSessions.map(session => `
-        <div class="history-item">
-            <div>File: ${session.filename}</div>
-            <div>Interactions: ${session.count}</div>
-            <div>Date: ${new Date(session.timestamp).toLocaleString()}</div>
-        </div>
-    `).join('');
+    downloadedSessions.forEach(session => {
+        const downloadItem = document.createElement('div');
+        downloadItem.className = 'download-item';
+        downloadItem.innerHTML = `
+            <span class="download-name">
+                <div class="checkmark-circle">
+                    <div class="checkmark"></div>
+                </div>
+                <input type="text" value="${session.filename}" readonly>
+            </span>
+            <span class="download-time">${new Date(session.timestamp).toLocaleString()}</span>
+        `;
+        historyList.appendChild(downloadItem);
+    });
 }
 
-// Function to update all displays
+// Function to update the display
 async function updateDisplay() {
     try {
-        const interactions = await sendMessageToBackground({ type: 'GET_INTERACTIONS' });
-        if (interactions) {
-            updateStats(interactions);
+        const stats = await sendMessageToBackground({ type: 'GET_TOTAL_STATS' });
+        if (stats) {
+            updateStats(stats);
         }
     } catch (error) {
-        console.error('Failed to update display:', error);
-        clearInterval(updateInterval);
-        document.body.innerHTML = '<div style="color: red; padding: 20px;">Extension context invalid. Please reload the extension.</div>';
+        console.error('Error updating display:', error);
     }
 }
 
-// Function to fetch download history
+// Function to fetch and update download history
 async function fetchDownloadHistory() {
     try {
-        const sessions = await sendMessageToBackground({ type: 'GET_DOWNLOAD_HISTORY' });
-        if (sessions) {
-            downloadedSessions = sessions;
+        const history = await sendMessageToBackground({ type: 'GET_DOWNLOAD_HISTORY' });
+        if (history) {
+            downloadedSessions = history;
             updateDownloadHistory();
         }
     } catch (error) {
-        console.error('Failed to fetch download history:', error);
+        console.error('Error fetching download history:', error);
     }
 }
 
-// Function to fetch current interaction limit
-async function fetchCurrentLimit() {
-    try {
-        const response = await sendMessageToBackground({ type: 'GET_INTERACTION_LIMIT' });
-        if (response && response.limit) {
-            document.getElementById('interactionLimit').value = response.limit;
-        }
-    } catch (error) {
-        console.error('Failed to fetch interaction limit:', error);
+// Initialize the popup
+document.addEventListener('DOMContentLoaded', async () => {
+    // Set up interaction limit control
+    const limitInput = document.getElementById('interaction-limit');
+    const applyButton = document.getElementById('apply-limit');
+    
+    // Load current limit
+    const {limit, on} = await sendMessageToBackground({ type: 'GET_INTERACTION_LIMIT' });
+    limitInput.value = limit;
+    // Set the toggle button to the correct state
+    if (on == true) {
+        document.querySelector('.toggle-button').classList.remove('off');
+        document.querySelector('.toggle-button').classList.add('on');
+        document.querySelector('.toggle-button').value = 'ON'   ;
+    }else if (on == false) {
+        document.querySelector('.toggle-button').classList.remove('on');
+        document.querySelector('.toggle-button').classList.add('off');
+        document.querySelector('.toggle-button').value = 'OFF';
+    }else{
+        document.querySelector('.toggle-button').value = on;
     }
-}
-
-// Function to validate and apply interaction limit
-async function applyInteractionLimit() {
-    const limitInput = document.getElementById('interactionLimit');
-    const applyButton = document.getElementById('applyLimit');
-    const newLimit = parseInt(limitInput.value);
-
-    // Disable button while processing
-    applyButton.disabled = true;
-
-    if (newLimit >= 100 && newLimit <= 10000) {
-        try {
-            const response = await sendMessageToBackground({ 
+    
+    applyButton.addEventListener('click', async () => {
+        const newLimit = parseInt(limitInput.value);
+        if (newLimit >= 100 && newLimit <= 10000) {
+            const result = await sendMessageToBackground({
                 type: 'SET_INTERACTION_LIMIT',
                 limit: newLimit
             });
-            if (response && response.error) {
-                limitInput.value = 1000; // Reset to default if error
-                showToast('Invalid limit value. Reset to default (1000).');
-            } else {
-                showToast(`Interaction limit updated to ${newLimit}`);
+            if (result && result.success) {
+                applyButton.textContent = 'Applied!';
+                setTimeout(() => {
+                    applyButton.textContent = 'Apply';
+                }, 2000);
             }
-        } catch (error) {
-            console.error('Failed to update interaction limit:', error);
-            limitInput.value = 1000; // Reset to default if error
-            showToast('Failed to update limit. Reset to default (1000).');
+        } else {
+            alert('Please enter a limit between 100 and 10000');
         }
-    } else {
-        limitInput.value = 1000; // Reset to default if invalid
-        showToast('Invalid limit value. Reset to default (1000).');
-    }
+    });
 
-    // Re-enable button after processing
-    applyButton.disabled = false;
-}
-
-// Handle interaction limit changes
-document.getElementById('interactionLimit').addEventListener('input', (e) => {
-    const newLimit = parseInt(e.target.value);
-    const applyButton = document.getElementById('applyLimit');
-    applyButton.disabled = !(newLimit >= 100 && newLimit <= 10000);
-});
-
-// Handle apply button click
-document.getElementById('applyLimit').addEventListener('click', applyInteractionLimit);
-
-// Handle session toggle
-document.getElementById('sessionToggle').addEventListener('change', (e) => {
-    updateDisplay(); // This will update the stats with the new toggle state
-});
-
-// Update display when popup opens
-document.addEventListener('DOMContentLoaded', () => {
+    // Initial update
     updateDisplay();
     fetchDownloadHistory();
-    fetchCurrentLimit();
-    
+
     // Set up periodic updates
-    updateInterval = setInterval(() => {
+    const updateInterval = setInterval(() => {
         updateDisplay();
         fetchDownloadHistory();
     }, 1000);
-});
 
-// Clean up on popup close
-window.addEventListener('unload', () => {
-    if (updateInterval) {
+    // Clean up interval when popup is closed
+    window.addEventListener('unload', () => {
         clearInterval(updateInterval);
-    }
+    });
 }); 
