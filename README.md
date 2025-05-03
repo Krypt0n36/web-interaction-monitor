@@ -51,34 +51,54 @@ The extension generates JSON files with the following structure:
 
 ```json
 {
-  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
-  "timestamp": "2024-03-21T10:30:45.123Z",
-  "interactions": [
-    {
-      "type": "mousemove",
-      "x": 150,
-      "y": 200,
-      "timestamp": "2024-03-21T10:30:45.123Z"
-    },
-    {
-      "type": "scroll",
-      "deltaX": 0,
-      "deltaY": 100,
-      "timestamp": "2024-03-21T10:30:46.234Z"
-    },
-    {
-      "type": "click",
-      "x": 300,
-      "y": 400,
-      "button": "left",
-      "timestamp": "2024-03-21T10:30:47.345Z"
-    },
-    {
-      "type": "keypress",
-      "key": "a",
-      "timestamp": "2024-03-21T10:30:48.456Z"
-    }
-  ]
+  "277445692": {
+    "ct8swwwc9": [
+      {
+        "action": "mouse_move",
+        "timestamp": 1746308491878,
+        "x": 1053,
+        "y": 371
+      },
+      {
+        "action": "scroll",
+        "timestamp": 1746308517804,
+        "current_offset": 7,
+        "total_offset": 4217,
+        "scroll_direction": "down"
+      },
+      {
+        "action": "scroll",
+        "timestamp": 1746308517815,
+        "current_offset": 16,
+        "total_offset": 4217,
+        "scroll_direction": "down"
+      },
+      {
+        "action": "click",
+        "x": 1078,
+        "y": 331,
+        "timestamp": 1746308492616,
+        "target": {
+          "tag": "DIV",
+          "type": "",
+          "width": 1069,
+          "height": 40,
+          "position": [
+            802,
+            312.5
+          ]
+        }
+      },
+      {
+        "action": "keypress",
+        "timestamp": 1746308678614
+      },
+      {
+        "action": "keypress",
+        "timestamp": 1746308678677
+      },
+    ]
+  }
 }
 ```
 
@@ -94,11 +114,11 @@ The extension generates JSON files with the following structure:
 
 3. **Click**
    - Captures click position
-   - Records which mouse button was used
+   - Element clicked: element type button/link/input ..
    - Includes click timestamp
 
 4. **Keypress**
-   - Records the pressed key
+   - Does not records the pressed key
    - Includes timestamp of the keypress
 
 ## Configuration
