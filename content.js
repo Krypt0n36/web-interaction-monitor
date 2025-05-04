@@ -34,16 +34,21 @@ function sendToBackground(message) {
 
 // Track mouse movements
 document.addEventListener('mousemove', (e) => {
-        sendToBackground({
-            type: 'INTERACTIONS',
-            data: [{
-                action: 'mouse_move',
-                timestamp: Date.now(),
-                x: e.clientX,
-                y: e.clientY,
-                session_id: currentSessionId
-            }]
-        });
+    const window_size = {
+        width: window.innerWidth,
+        height: window.innerHeight
+    }
+    sendToBackground({
+        type: 'INTERACTIONS',
+        data: [{
+            action: 'mouse_move',
+            timestamp: Date.now(),
+            x: e.clientX,
+            y: e.clientY,
+            session_id: currentSessionId,
+            window_size: window_size
+        }]
+    });
 });
 
 let lastScrollY = null;
@@ -51,15 +56,18 @@ let lastScrollY = null;
 document.addEventListener('scroll', () => {
         // Get current scroll position
         const currentScrollY = window.scrollY || window.pageYOffset;
-
+        const window_size = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        }
         // Get total scrollable height and width
         const totalHeight = Math.max(
-        document.body.scrollHeight,
-        document.documentElement.scrollHeight,
-        document.body.offsetHeight,
-        document.documentElement.offsetHeight,
-        document.body.clientHeight,
-        document.documentElement.clientHeight
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight,
+            document.body.offsetHeight,
+            document.documentElement.offsetHeight,
+            document.body.clientHeight,
+            document.documentElement.clientHeight
         ) - window.innerHeight;
 
         // Get scroll direction
@@ -76,13 +84,18 @@ document.addEventListener('scroll', () => {
                 session_id: currentSessionId,
                 current_offset: currentScrollY,
                 total_offset: totalHeight,
-                scroll_direction: scrollDirection       
+                scroll_direction: scrollDirection,
+                window_size: window_size
             }]
     });
 });
 
 // Track clicks
 document.addEventListener('click', (e) => {
+        const window_size = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        }
         sendToBackground({
             type: 'INTERACTIONS',
             data: [{
@@ -91,19 +104,25 @@ document.addEventListener('click', (e) => {
             y: e.clientY,
             timestamp: Date.now(),
             session_id: currentSessionId,
-            target: getElementDetails(e.target)
+            target: getElementDetails(e.target),
+            window_size: window_size
             }]
         });
 });
 
 // Track keypresses
 document.addEventListener('keypress', (e) => {
+        const window_size = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        }
         sendToBackground({
             type: 'INTERACTIONS',
             data: [{
             action: 'keypress',
             timestamp: Date.now(),
-            session_id: currentSessionId
+            session_id: currentSessionId,
+            window_size: window_size
         }]
     });
 });

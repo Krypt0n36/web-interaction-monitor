@@ -113,37 +113,36 @@ function handleMessage(message, sender, sendResponse) {
     try {
         if (message.type === 'INTERACTIONS') {
             if (on) {
+                // Update total stats
+                message.data.forEach(interaction => {
+                    totalStats[interaction.action]++;
+                });
+                saveToStorage(); // Save after updating total stats
+                
+                // Add interactions to their respective tab and session groups
+                message.data.forEach(interaction => {
+                    // Use a default tab ID if sender.tab is not available
+                    const tabId = (sender && sender.tab && sender.tab.id) ? sender.tab.id.toString() : 'unknown_tab';
+                    const sessionId = interaction.session_id;
+                    // Initialize tab if it doesn't exist
+                    if (!storedInteractions[tabId]) {
+                        storedInteractions[tabId] = {};
+                    }
+                    
+                    // Initialize session if it doesn't exist
+                    if (!storedInteractions[tabId][sessionId]) {
+                        storedInteractions[tabId][sessionId] = [];
+                    }
+                    
+                    delete interaction.session_id;
 
-            // Update total stats
-            message.data.forEach(interaction => {
-                totalStats[interaction.action]++;
-            });
-            saveToStorage(); // Save after updating total stats
-            
-            // Add interactions to their respective tab and session groups
-            message.data.forEach(interaction => {
-                // Use a default tab ID if sender.tab is not available
-                const tabId = (sender && sender.tab && sender.tab.id) ? sender.tab.id.toString() : 'unknown_tab';
-                const sessionId = interaction.session_id;
+                    storedInteractions[tabId][sessionId].push(interaction);
+                });
                 
-                // Initialize tab if it doesn't exist
-                if (!storedInteractions[tabId]) {
-                    storedInteractions[tabId] = {};
-                }
-                
-                // Initialize session if it doesn't exist
-                if (!storedInteractions[tabId][sessionId]) {
-                    storedInteractions[tabId][sessionId] = [];
-                }
-                
-                delete interaction.session_id;
-                storedInteractions[tabId][sessionId].push(interaction);
-            });
-            
-            // Check against current interaction limit
-            if (getTotalInteractionCount() > interactionLimit) {
-                // Download the current interactions before clearing
-                downloadInteractions();
+                // Check against current interaction limit
+                if (getTotalInteractionCount() > interactionLimit) {
+                    // Download the current interactions before clearing
+                    downloadInteractions();
                 }
             }
         } else if (message.type === 'GET_INTERACTIONS') {
