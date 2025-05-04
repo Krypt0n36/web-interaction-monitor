@@ -1,7 +1,7 @@
 // Store interactions in memory
 let storedInteractions = {}; // Structure: { tab_id: { session_id: [interactions] } }
 let downloadedSessions = [];
-let interactionLimit = 1000; // Default limit
+let interactionLimit = 5000; // Default limit
 let totalStats = {
     mouse_move: 0,
     scroll: 0,
